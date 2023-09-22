@@ -27,8 +27,8 @@ public class User {
     private String lastName;
 
     @ManyToOne
-    @JoinColumn(name = "role_id", referencedColumnName = "role_id")
-    @JsonIgnore // ไม่แสดงข้อมูล role ใน JSON
+    @JoinColumn(name = "role", referencedColumnName = "role_id")
+   // @JsonIgnore // ไม่แสดงข้อมูล role ใน JSON
     private Role role;
 
 

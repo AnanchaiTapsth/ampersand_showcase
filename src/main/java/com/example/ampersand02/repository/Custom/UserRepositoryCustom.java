@@ -19,23 +19,26 @@ public class UserRepositoryCustom {
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
     StringBuilder sqlStatement = new StringBuilder();
 
-    public List<Object> findUserByFnOrLn(String keyword) {
-        LOGGER.info("[START] findUserByFnOrLn In UserRepositoryCustom  keyword == : {}", keyword);
+    public List<Object> findUserByFnOrLn(String firstName ,String lastName) {
+        LOGGER.info("[START] findUserByFnOrLn In UserRepositoryCustom  firstName , lastName == : {} {}", firstName ,lastName );
         List<Object> result = new ArrayList<>();
 
         sqlStatement.append(
-                " SELECT user_id , first_name , last_name , password , username , role_id \n");
+                " SELECT user_id , first_name , last_name , password , username , role \n");
         sqlStatement.append(
                 " FROM  \"user\" \n");
         sqlStatement.append(" WHERE 1 = 1 \n");
 
-        if (!keyword.equalsIgnoreCase(null) && !keyword.equalsIgnoreCase("")) {
-            sqlStatement.append(" AND (first_name like :keyword OR last_name like :keyword) \n");
+        if (!firstName.equalsIgnoreCase("") && !lastName.equalsIgnoreCase("")) {
+            sqlStatement.append(" AND (first_name like :firstName OR last_name like :lastName) \n");
         }
         LOGGER.info("sql :{}", sqlStatement);
         Query query = us.createNativeQuery(sqlStatement.toString());
-        if (!keyword.equalsIgnoreCase(null) && !keyword.equalsIgnoreCase("")) {
-            query.setParameter("keyword", "%" + keyword + "%");
+        if (!firstName.equalsIgnoreCase("")) {
+            query.setParameter("firstName", "%" + firstName + "%");
+        }
+        if(!lastName.equalsIgnoreCase("")) {
+            query.setParameter("lastName", "%" + lastName + "%");
         }
         List<Object[]> listfromQuery = query.getResultList();
 

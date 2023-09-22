@@ -28,44 +28,7 @@ public class RoleServiceImpl implements RoleService {
     RoleRepositoryCustom roleRepositoryCustom;
 
     @Override
-    public void updateRole(String json){
-        LOGGER.info("[updateRoleServiceImpl][updateRole][01]");
-        JSONParser parser = new JSONParser();
-        JSONObject obj = null;
-        if (json != null && !json.isEmpty()) {
-            try {
-                obj = (JSONObject) parser.parse(json);
-            } catch (ParseException e) {
-                // การแปลงไม่สำเร็จ
-                LOGGER.error("Error parsing JSON: {}", e.getMessage());
-            }
-        } else {
-            LOGGER.error("Empty or null JSON input");
-        }
-        LOGGER.error("obj ========== : {}" , obj);
-
-        String roleId = obj.get("roleId").toString();
-        String roleName = obj.get("roleName").toString();
-        String permission = obj.get("permission").toString();
-
-        Role roleReal = findById(Long.valueOf(roleId));
-        Optional<Permission> permissionObject = permissionRepository.findById(Long.valueOf(permission));
-        LOGGER.info("permissionObject value: {}", permissionObject.get().getPermissionId());
-        if (!permissionObject.isPresent()) {
-            throw new RuntimeException("permission not found");
-
-        }
-        LOGGER.info("savepermissionObject id: {}", permissionObject.get().getPermissionId());
-
-        roleReal.setRoleName(roleName);
-        roleReal.setPermission(permissionObject.get());
-        LOGGER.info("roleReal ======================= : {}", roleReal);
-        roleRepository.save(roleReal);
-
-
-     }
-    @Override
-    public void createRole(String json){
+    public Role createRole(String json){
         LOGGER.info("[createRoleServiceImpl][createRole][01]");
         JSONParser parser = new JSONParser();
         JSONObject obj = null;
@@ -86,18 +49,22 @@ public class RoleServiceImpl implements RoleService {
         String permission = obj.get("permission").toString();
 
         Role roleReal = new Role();
-        Optional<Permission> permissionObject = permissionRepository.findById(Long.valueOf(permission));
-        LOGGER.info("permissionObject value: {}", permissionObject.get().getPermissionId());
-        if (!permissionObject.isPresent()) {
-            throw new RuntimeException("permission not found");
-        }
-        LOGGER.info("savePermissionObject id: {}", permissionObject.get().getPermissionId());
 
+        Permission permissionReturn = permissionRepository.findById(Long.valueOf(permission))
+                .orElseThrow(() -> new IllegalArgumentException("ไม่พบ permission Id นี้ใน Data"));
+
+//        Optional<Permission> permissionObject = permissionRepository.findById(Long.valueOf(permission));
+//        LOGGER.info("permissionObject value: {}", permissionObject.get().getPermissionId());
+//        if (!permissionObject.isPresent()) {
+//            throw new RuntimeException("permission not found");
+//        }
+        LOGGER.info("permissionReturn id: {}", permissionReturn.getPermissionId());
+        roleReal.setPermission(permissionReturn);
         roleReal.setRoleName(roleName);
-        roleReal.setPermission(permissionObject.get());
+     //   roleReal.setPermission(permissionObject.get());
         LOGGER.info("roleReal ======================= : {}", roleReal);
-        roleRepository.save(roleReal);
-
+        Role roleReturn = roleRepository.save(roleReal);
+        return roleReturn;
 
     }
 

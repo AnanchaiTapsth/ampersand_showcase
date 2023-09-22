@@ -25,7 +25,7 @@ public class RoleRepositoryCustom {
         sqlStatement.append(
                 " SELECT r.role_id , r.role_name , p.permission_id , p.permission_desc , p.permission_name \n");
         sqlStatement.append(
-                " FROM role r JOIN permission p ON r.permission_id = p.permission_id \n");
+                " FROM role r JOIN permission p ON r.permission = p.permission_id \n");
         sqlStatement.append(" WHERE 1 = 1 \n");
 
         if (!roleId.toString().equalsIgnoreCase(null) && !roleId.toString().equalsIgnoreCase("")) {

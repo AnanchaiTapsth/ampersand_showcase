@@ -1,6 +1,7 @@
 package com.example.ampersand02.domain;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
-import java.util.Date;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -14,7 +15,7 @@ import java.io.Serializable;
 
 @Entity
 @Table(name = "role")
-@JsonIgnoreProperties("permission")
+@JsonIgnoreProperties("permissions")
 public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,18 +25,22 @@ public class Role {
     @Column(name = "role_name")
     private String roleName;
 
+//    @ManyToMany(mappedBy = "permission_id")
+//    @ManyToMany()
+//    @JoinTable(
+//            name = "permission", // ชื่อตารางผูกกัน
+//            joinColumns = @JoinColumn(name = "role"), // คอลัมน์ที่เชื่อมโยงจาก Role
+//            inverseJoinColumns = @JoinColumn(name = "permission_id") // คอลัมน์ที่เชื่อมโยงจาก Permission
+//    )
+//    private List<Permission> permission = new ArrayList<>();
+
     @ManyToOne
-    @JoinColumn(name = "permission_id", referencedColumnName = "permission_id")
-    @JsonManagedReference // แสดงข้อมูล permission ใน JSON
+    @JoinColumn(name = "permission", referencedColumnName = "permission_id")
     private Permission permission;
 
-
-    @OneToMany(mappedBy = "role")
-    @JsonBackReference // ไม่แสดงข้อมูล users ใน JSON
-    private Set<User> users;
-
-    // Default constructor
+//    @OneToMany
+//    @JoinColumn(name = "permission", referencedColumnName = "permission_id")
+//    private List <Permission> permissions = new ArrayList<>();
     public Role() {
     }
-
 }

@@ -6,7 +6,6 @@ import com.example.ampersand02.repository.RoleRepository;
 
 public interface RoleService {
 
-   void updateRole(String json);
-   void createRole(String json);
+   Role createRole(String json);
    List<Object> getRoleAndPermission(Long roleId);
 }

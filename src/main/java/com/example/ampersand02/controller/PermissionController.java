@@ -1,7 +1,9 @@
 package com.example.ampersand02.controller;
 
 import com.example.ampersand02.domain.Permission;
+import com.example.ampersand02.domain.User;
 import com.example.ampersand02.repository.PermissionRepository;
+import com.example.ampersand02.service.PermissionService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,14 +27,20 @@ public class PermissionController {
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
     @Autowired
     private PermissionRepository permissionRepository;
+
+    @Autowired
+    private PermissionService permissionService;
+
     @Autowired
     private ObjectMapper objectMapper; // อินเจ็คต์ของ ObjectMapper
 
+
     // URS14: ผู้ดูแลระบบผู้ใช้สามารถสร้างสิทธิ์ได้
     @PostMapping("createPermission")
-    public Permission createUser(@RequestBody Permission permission) {
-        LOGGER.info("permission JSON: {}", permission);
-        return permissionRepository.save(permission);
+    public ResponseEntity<String> createPermission(@RequestBody Permission permissionProfileRequest) {
+        LOGGER.info("permissionProfileRequest ===  : {} " ,permissionProfileRequest );
+        Permission createPermission = permissionService.createPermission(permissionProfileRequest);
+        return ResponseEntity.ok("createPermissionProfile " + createPermission.getPermissionName() + " successfully");
     }
 
     //URS15: ผู้ดูแลระบบผู้ใช้สามารถเลือกดูการอนุญาตทั้งหมดได้
@@ -55,7 +63,7 @@ public class PermissionController {
 
         return permissionsOj;
     }
-
+    // URS16: ผู้ดูแลระบบผู้ใช้สามารถลบการอนุญาตโดย permission_id
     @DeleteMapping("deletePermission/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
         Permission existingPermission = permissionRepository.findById(id).orElse(null);
