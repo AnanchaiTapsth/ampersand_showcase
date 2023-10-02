@@ -1,18 +1,17 @@
-package com.example.ampersand02.domain;
+package com.example.ampersand02.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import java.io.Serializable;
 import lombok.Data;
+
 @Data
-@Table(name = "\"user\"")
+@Table(name = "user_detail")
 @Entity
-public class User {
+public class UserDetail {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "id")
+    private Long id;
 
     @Column(name = "username")
     private String username;
@@ -27,11 +26,6 @@ public class User {
     private String lastName;
 
     @ManyToOne
-    @JoinColumn(name = "role", referencedColumnName = "role_id")
-   // @JsonIgnore // ไม่แสดงข้อมูล role ใน JSON
+    @JoinColumn(name = "role") // กำหนดชื่อคอลัมน์ที่เชื่อมกับ Role
     private Role role;
-
-
-    // public User() {
-    //}
 }

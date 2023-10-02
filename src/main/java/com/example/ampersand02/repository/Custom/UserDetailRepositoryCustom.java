@@ -13,20 +13,30 @@ import java.util.List;
 import java.util.Map;
 
 @Repository
-public class UserRepositoryCustom {
+public class UserDetailRepositoryCustom {
     @Autowired
     private EntityManager us;
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
     StringBuilder sqlStatement = new StringBuilder();
 
-    public List<Object> findUserByFnOrLn(String firstName ,String lastName) {
+    public  List<Object> findUserByFnOrLn(String firstName , String lastName) {
+        if(firstName.isEmpty() && lastName.isEmpty()){
+            firstName = "";
+            lastName = "";
+        }
+        else if(firstName.isEmpty()){
+            firstName = " ";
+        }
+        else if(lastName.isEmpty()) {
+            lastName = " ";
+        }
+
         LOGGER.info("[START] findUserByFnOrLn In UserRepositoryCustom  firstName , lastName == : {} {}", firstName ,lastName );
         List<Object> result = new ArrayList<>();
-
         sqlStatement.append(
-                " SELECT user_id , first_name , last_name , password , username , role \n");
+                " SELECT id , first_name , last_name , password , username , role \n");
         sqlStatement.append(
-                " FROM  \"user\" \n");
+                " FROM  user_detail");
         sqlStatement.append(" WHERE 1 = 1 \n");
 
         if (!firstName.equalsIgnoreCase("") && !lastName.equalsIgnoreCase("")) {
@@ -45,17 +55,17 @@ public class UserRepositoryCustom {
         LOGGER.info("findUserByFnOrLn query size {}", listfromQuery.size());
         for (Object[] o : listfromQuery) {
             Map<String, Object> mapResult = new HashMap();
-
-            mapResult.put("userId", o[0]);
-            mapResult.put("firstName", o[1]);
-            mapResult.put("lastName", o[2]);
+            mapResult.put("user_id", o[0]);
+            mapResult.put("first_name", o[1]);
+            mapResult.put("last_name", o[2]);
             mapResult.put("password", o[3]);
             mapResult.put("username", o[4]);
-            mapResult.put("role", o[5]);
+            mapResult.put("role_id", o[5]);
             result.add(mapResult);
         }
-            LOGGER.info("[END]findUserByFnOrLn result : {} ", result.size());
-            return result;
-        }
+        LOGGER.info("[END]findUserByFnOrLn result : {} ", result.size());
+        return result;
     }
+
+}
 

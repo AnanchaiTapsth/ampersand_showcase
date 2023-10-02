@@ -1,6 +1,9 @@
 package com.example.ampersand02.service;
-import com.example.ampersand02.domain.Permission;
-import com.example.ampersand02.domain.User;
+
+import com.example.ampersand02.entity.Permission;
+
+import org.springframework.http.ResponseEntity;
+
 public interface PermissionService {
-     Permission createPermission(Permission permissionProfileRequest);
+    ResponseEntity<Object> createPermission(Permission permission);
 }

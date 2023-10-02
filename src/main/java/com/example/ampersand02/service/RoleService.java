@@ -1,11 +1,14 @@
 package com.example.ampersand02.service;
 
+import com.example.ampersand02.entity.Role;
+import com.example.ampersand02.payload.role.RoleDto;
+import com.example.ampersand02.payload.role.RoleDtoFindAll;
+import org.springframework.http.ResponseEntity;
+
 import java.util.List;
-import com.example.ampersand02.domain.Role;
-import com.example.ampersand02.repository.RoleRepository;
 
 public interface RoleService {
-
-   Role createRole(String json);
-   List<Object> getRoleAndPermission(Long roleId);
+    ResponseEntity<Object> createRole(Role role);
+    List<RoleDtoFindAll> convertToRoleDtoList(List<Role> roleList);
+    List<RoleDto> convertRoleFindById(List<Role> roleList);
 }

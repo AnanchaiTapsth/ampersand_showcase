@@ -1,21 +1,27 @@
 package com.example.ampersand02.service.impl;
 
-import com.example.ampersand02.domain.Permission;
-import com.example.ampersand02.domain.Role;
-import com.example.ampersand02.repository.Custom.RoleRepositoryCustom;
+import com.example.ampersand02.common.Constants;
+import com.example.ampersand02.entity.Permission;
+import com.example.ampersand02.entity.Role;
+import com.example.ampersand02.exception.ErrorMessageException;
+import com.example.ampersand02.payload.premission.PermissionDto;
+import com.example.ampersand02.payload.role.RoleDto;
+import com.example.ampersand02.payload.role.RoleDtoFindAll;
 import com.example.ampersand02.repository.PermissionRepository;
 import com.example.ampersand02.repository.RoleRepository;
 import com.example.ampersand02.service.RoleService;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import com.example.ampersand02.utils.ResponseHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static com.example.ampersand02.common.Constants.MESSAGE.*;
 
 @Service
 public class RoleServiceImpl implements RoleService {
@@ -24,76 +30,70 @@ public class RoleServiceImpl implements RoleService {
     RoleRepository roleRepository;
     @Autowired
     PermissionRepository permissionRepository;
-    @Autowired
-    RoleRepositoryCustom roleRepositoryCustom;
 
-    @Override
-    public Role createRole(String json){
-        LOGGER.info("[createRoleServiceImpl][createRole][01]");
-        JSONParser parser = new JSONParser();
-        JSONObject obj = null;
-        if (json != null && !json.isEmpty()) {
-            try {
-                obj = (JSONObject) parser.parse(json);
-            } catch (ParseException e) {
-                // การแปลงไม่สำเร็จ
-                LOGGER.error("Error parsing JSON: {}", e.getMessage());
-            }
-        } else {
-            LOGGER.error("Empty or null JSON input");
-        }
-        LOGGER.error("obj CreateRole ========== : {}" , obj);
-
-        //String roleId = obj.get("roleId").toString();
-        String roleName = obj.get("roleName").toString();
-        String permission = obj.get("permission").toString();
-
-        Role roleReal = new Role();
-
-        Permission permissionReturn = permissionRepository.findById(Long.valueOf(permission))
-                .orElseThrow(() -> new IllegalArgumentException("ไม่พบ permission Id นี้ใน Data"));
-
-//        Optional<Permission> permissionObject = permissionRepository.findById(Long.valueOf(permission));
-//        LOGGER.info("permissionObject value: {}", permissionObject.get().getPermissionId());
-//        if (!permissionObject.isPresent()) {
-//            throw new RuntimeException("permission not found");
-//        }
-        LOGGER.info("permissionReturn id: {}", permissionReturn.getPermissionId());
-        roleReal.setPermission(permissionReturn);
-        roleReal.setRoleName(roleName);
-     //   roleReal.setPermission(permissionObject.get());
-        LOGGER.info("roleReal ======================= : {}", roleReal);
-        Role roleReturn = roleRepository.save(roleReal);
-        return roleReturn;
-
-    }
-
-    @Override
-    public  List<Object> getRoleAndPermission(Long roleId){
-        List<Object> listRole = roleRepositoryCustom.getRoleAndPermission(roleId);
-        LOGGER.debug("listRole size : {}", listRole.size());
-        LOGGER.debug("listRole ========== : {}", listRole);
-        return listRole;
-    }
-
-    public Role findById(Long id) {
-        LOGGER.info("[EmployeeServiceImpl][findById][01] id : {}", id);
-
+    public ResponseEntity<Object> createRole(Role role){
         try {
-            Optional<Role> role = roleRepository.findById(id);
-            if (role.isPresent()) {
-                LOGGER.info("[RoleServiceImpl][findById][02] role is not null!");
-                LOGGER.info(" ================== [findById] id :{}", role.get().getRoleId());
-                return role.get();
-            } else {
-                LOGGER.info("[RoleServiceImpl][findById][03] role is null!");
-                return null;
+            LOGGER.info(" role In ServiceImpl = ====== : {}" , role);
+            if (roleRepository.existsByRoleName(role.getRoleName())) {
+                return ResponseHelper.bad(ERR_AUTH_1111.getMsg());
             }
-
-        } catch (Exception ex) {
-            LOGGER.error("[ERROR][RoleServiceImpl][findById] errorMsg : {}", ex.getMessage());
-            throw new RuntimeException(ex.getMessage());
+            Role roleReturn = new Role();
+            roleReturn.setRoleName(role.getRoleName());
+            LOGGER.info("(role.getPermissions().get(0).getId()) ====== : {}" , role.getPermissions().get(0).getId());
+            Optional<Permission> opt = permissionRepository.findById(role.getPermissions().get(0).getId());
+            LOGGER.info(" Optional<Permission> opt = ====== : {}" , opt);
+            if(opt.isEmpty()) {
+                return ResponseHelper.bad(ERR_AUTH_0004.getMsg());
+            }
+            List<Permission> permission = new ArrayList<>();
+            permission.add(opt.get());
+            LOGGER.info("permission = ====== : {}" , permission);
+            roleReturn.setPermissions(permission);
+            roleRepository.save(roleReturn);
+            return ResponseHelper.success(Constants.MESSAGE.INFO_MTS_0000.getMsg());
+        } catch (Exception e){
+            // ส่ง Response ข้อผิดพลาดกลับ
+            return ResponseHelper.bad(ERR_AUTH_0004.getMsg());
         }
     }
 
+    public List<RoleDtoFindAll> convertToRoleDtoList(List<Role> roleList) {
+        try {
+            List<RoleDtoFindAll> roleDtoList = new ArrayList<>();
+            for (Role role : roleList) {
+                RoleDtoFindAll roleDto = new RoleDtoFindAll();
+                roleDto.setId(role.getId());
+                roleDto.setRoleName(role.getRoleName());
+                roleDtoList.add(roleDto);
+            }
+            return roleDtoList;
+        } catch (Exception e){
+            // ส่ง Response ข้อผิดพลาดกลับ
+            throw new ErrorMessageException(ERR_AUTH_0003);
+        }
+    }
+   public List<RoleDto> convertRoleFindById(List<Role> roleList) {
+       try {
+           List<RoleDto> roleDtoList = new ArrayList<>();
+           for (Role role : roleList) {
+               RoleDto roleDto = new RoleDto();
+               roleDto.setId(role.getId());
+               roleDto.setRoleName(role.getRoleName());
+               List<PermissionDto> permissionDtoList = new ArrayList<>();
+               for (Permission permission : role.getPermissions()) {
+                   PermissionDto permissionDto = new PermissionDto();
+                   permissionDto.setId(permission.getId());
+                   permissionDto.setPermissionName(permission.getPermissionName());
+                   permissionDto.setPermissionDescription(permission.getPermissionDescription());
+                   permissionDtoList.add(permissionDto);
+               }
+               roleDto.setPermissions(permissionDtoList);
+               roleDtoList.add(roleDto);
+           }
+           return roleDtoList;
+       }catch (Exception e){
+           // ส่ง Response ข้อผิดพลาดกลับ
+           throw new ErrorMessageException(ERR_AUTH_0003);
+       }
+   }
 }

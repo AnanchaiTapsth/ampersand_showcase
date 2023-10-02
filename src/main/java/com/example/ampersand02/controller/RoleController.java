@@ -1,29 +1,32 @@
 package com.example.ampersand02.controller;
 
-import com.example.ampersand02.domain.Permission;
-import com.example.ampersand02.domain.Role;
-import com.example.ampersand02.domain.User;
+import com.example.ampersand02.entity.Role;
+import com.example.ampersand02.entity.RolePermission;
+import com.example.ampersand02.exception.ErrorMessageException;
+import com.example.ampersand02.payload.role.AddAndRemoveRole;
+import com.example.ampersand02.payload.role.RoleDto;
+import com.example.ampersand02.payload.role.RoleDtoFindAll;
 import com.example.ampersand02.repository.RoleRepository;
 import com.example.ampersand02.repository.PermissionRepository;
 import com.example.ampersand02.service.RoleService;
+import com.example.ampersand02.service.TransactionLogService;
+import com.example.ampersand02.utils.ResponseHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import flexjson.JSONSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import static com.example.ampersand02.common.Constants.MESSAGE.*;
 
 
 @RestController
-@RequestMapping("/role")
+@RequestMapping("/api/role/")
 public class RoleController {
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
     @Autowired
@@ -32,134 +35,173 @@ public class RoleController {
     private RoleService roleService;
 
     @Autowired
-    private PermissionRepository permissionRepository;
-    @Autowired
-    private ObjectMapper objectMapper; // อินเจ็คต์ของ ObjectMapper
+    TransactionLogService transactionLogService;
 
-
+    private  ResponseEntity<Object> responseReturn;
+    private int httpStatus;
+    @GetMapping("checkRoleId/{id}")
+    public ResponseEntity<Object> checkRoleId(@PathVariable Long id){
+        transactionLogService.setStartTime();
+        Role existingRole = roleRepository.findById(id).orElse(null);
+        LOGGER.info("existingRole === : {} " ,existingRole);
+        if (existingRole == null) {
+            responseReturn = ResponseHelper.bad(ERR_AUTH_0002.getMsg());
+        }
+        else {
+            responseReturn = ResponseHelper.success(INFO_MTS_0000.getMsg());
+        }
+        this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+        transactionLogService.savetransactionLog("checkRoleId id "+id.toString(), this.httpStatus);
+        return responseReturn;
+    }
 
     // URS08: ผู้ดูแลระบบผู้ใช้สามารถสร้างบทบาทได้
     @PostMapping("createRole")
-    public ResponseEntity<String> createRole(@RequestBody String json) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-Type", "application/json;charset=utf-8");
-        headers.add("responseCode", "0");
-        LOGGER.info("[START][createRole][01] json : {}", json);
-
+    public ResponseEntity<Object> createRole(@RequestBody Role createRole) {
         try {
-           Role roleReturn = roleService.createRole(json);
-            return new ResponseEntity<String>(new JSONSerializer().deepSerialize("Create Role Id = "+roleReturn.getRoleId()+ " and Permission Id = " +roleReturn.getPermission().getPermissionId()+" Success"), headers, HttpStatus.OK);
-        } catch (Exception ex) {
-            LOGGER.error("[ERROR][createRole] : {}", ex);
-
-            headers.add("responseCode", "-1");
-            headers.add("errMsg", ex.getMessage());
-            Map<String, Object> result = new HashMap<>();
-            result.put("errMsg", ex.getMessage());
-            result.put("errorStatus", "-1");
-            result.put("httpStatus", HttpStatus.INTERNAL_SERVER_ERROR);
-            return new ResponseEntity<String>(new JSONSerializer().deepSerialize(result),
-                    headers,
-                    HttpStatus.INTERNAL_SERVER_ERROR);
+            transactionLogService.setStartTime();
+            responseReturn = roleService.createRole(createRole);
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(createRole.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(createRole.toString() , HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
     }
+
     // URS09: ผู้ดูแลระบบผู้ใช้สามารถเรียกดูชื่อบทบาททั้งหมดได้
     @GetMapping("/findRoleAll")
-    public ResponseEntity<String> getRole() {
-        HttpHeaders headers = new HttpHeaders();
-        LOGGER.info("[START][findAllRole]");
-        List<Role> rolesOj = roleRepository.findAll();
-
-        LOGGER.info("[END][findAllRole] Role Count: {}", rolesOj.size());
-        LOGGER.info("[TEST][findAllRole] Role == : {}", rolesOj);
-        StringBuilder result = new StringBuilder();
-        for (Role role : rolesOj) {
-            try {
-                // สร้าง JSON Object เฉพาะ roleId และ roleName
-                JsonObject jsonObject = new JsonObject();
-                jsonObject.addProperty("roleId", role.getRoleId());
-                jsonObject.addProperty("roleName", role.getRoleName());
-
-                String rolJson = jsonObject.toString(); // แปลง JSON Object เป็น JSON String
-               // String rolJson = objectMapper.writeValueAsString(role); // แปลง role เป็น JSON
-                LOGGER.info("Role JSON: {}", rolJson); // แสดง JSON ของ role
-                result.append(rolJson).append("\n");
-            } catch (Exception e) {
-                LOGGER.error("Error converting Role to JSON: {}", e.getMessage());
-            }
+    public ResponseEntity<Object> getRole() {
+        try {
+            transactionLogService.setStartTime();
+            List<Role> roleList = roleRepository.findAll();
+            List<RoleDtoFindAll> roleDtoList = roleService.convertToRoleDtoList(roleList);
+           // List<RoleDto> roleDtoList = convertToRoleDtoList(roleList);
+            responseReturn = ResponseHelper.successWithList(INFO_AUTH_0000.getMsg(), roleDtoList);
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
-        return new ResponseEntity<String>(result.toString(), headers, HttpStatus.OK);
-//        return new ResponseEntity<String>(new JSONSerializer()
-//                .include("roleId")
-//                .include("roleName")
-//                .exclude("*")
-//                .deepSerialize(rolesOj),headers, HttpStatus.OK);
     }
 
     // URS10: ผู้ดูแลระบบผู้ใช้สามารถเรียกดูบทบาทและ permission Role_id
-    @GetMapping("getRoleAndPermission")
-    public ResponseEntity<String> getRoleAndPermission(@RequestParam(value = "roleId") Long roleId) {
-        HttpHeaders headers = new HttpHeaders();
-        LOGGER.info("[START][findAllRole]");
-        // List<Role> rolesOj = roleRepository.findAll();
-//        List<Permission> permission= permissionRepository.findAll();
-        //   V1
-        Role roleReturn = roleRepository.findById(roleId).orElseThrow();
-        {
-
-            // List<Role> roleReturn = new ArrayList<>();
-//        for (Role role : rolesOj) {
-//            if(role.getRoleId().longValue() == roleId){
-//                roleReturn.add(role);
-//            }
-//            try {
-//                String rolJson = objectMapper.writeValueAsString(roleReturn); // แปลง role เป็น JSON
-//                LOGGER.info("Role JSON: {}", roleReturn); // แสดง JSON ของ role
-//
-//            } catch (Exception e) {
-//                LOGGER.error("Error converting Role to JSON: {}", e.getMessage());
-//            }
-//        }
-
-            return new ResponseEntity<String>(roleReturn.toString(), headers, HttpStatus.OK);
-
-            // V2
-//        List<Object> roleList = roleService.getRoleAndPermission(roleId);
-//        return new ResponseEntity<String>(roleList.toString(), headers, HttpStatus.OK);
-
+    @GetMapping("getRoleAndPermission/{id}")
+    public ResponseEntity<Object> getRoleAndPermission(@PathVariable Long id) {
+        try {
+            transactionLogService.setStartTime();
+            Role role= roleRepository.findById(id).orElse(null);
+            List<Role> roleList = new ArrayList<>();
+            roleList.add(role);
+            if (role == null) {
+                responseReturn = ResponseHelper.bad(ERR_AUTH_0002.getMsg());
+            }else {
+                List<RoleDto> roleDtoList = roleService.convertRoleFindById(roleList);
+                responseReturn = ResponseHelper.successWithList(INFO_AUTH_0000.getMsg(), roleDtoList);
+            }
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
     }
 
     // URS11: ผู้ดูแลระบบผู้ใช้สามารถแก้ไข Role_name ได้ด้วย Role_id
-    @PutMapping("updateRoleById/{id}")
-    public ResponseEntity<String> updateRoleById(@PathVariable Long id, @RequestBody Role updateRole) {
-        Role existingRole = roleRepository.findById(id).orElse(null);
-
-        if (existingRole == null) {
-
-            return ResponseEntity.ofNullable("This Role ID does not exist.");
-        } else {
-
-            LOGGER.info("updateRole JSON: {}", existingRole);
-            // อัปเดตข้อมูลผู้ใช้
-            existingRole.setRoleName(updateRole.getRoleName());
-            roleRepository.save(existingRole);
-
-            return ResponseEntity.ok("Role Update successfully.");
+    @PutMapping ("updateRole/{id}")
+    public ResponseEntity<Object> updateRoleById(@PathVariable Long id, @RequestParam(value = "roleName") String roleName) {
+        try {
+            transactionLogService.setStartTime();
+            Role role= roleRepository.findById(id).orElse(null);
+            if (role == null) {
+                responseReturn = ResponseHelper.bad(ERR_AUTH_0002.getMsg());
+            }else {
+                role.setRoleName(roleName);
+                roleRepository.save(role);
+                responseReturn = ResponseHelper.success(INFO_AUTH_0000.getMsg());
+        }
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        }catch (Exception e){
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
     }
+
 
     // URS12: ผู้ดูแลระบบผู้ใช้สามารถลบบทบาทตาม Role_id
     @DeleteMapping("deleteRole/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
-        Role existingRole = roleRepository.findById(id).orElse(null);
-
-        if (existingRole == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Object> deleteUser(@PathVariable Long id) {
+        try {
+            transactionLogService.setStartTime();
+            Role role = roleRepository.findById(id).orElse(null);
+            if (role == null) {
+                responseReturn = ResponseHelper.bad(ERR_AUTH_0002.getMsg());
+            } else {
+                roleRepository.delete(role);
+                responseReturn = ResponseHelper.success(INFO_AUTH_0000.getMsg());
+            }
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
-
-        roleRepository.delete(existingRole);
-        return ResponseEntity.ok("Role deleted successfully");
     }
+    // URS13
+ /*   @PostMapping("addAndRemoveRole")
+    public ResponseEntity<Object> addAndRemoveRole(@RequestBody AddAndRemoveRole Json) {
+        try {
+            transactionLogService.setStartTime();
+            List<Permission> permissionList = new ArrayList<>();
+            List<Role> roleList = new ArrayList<>();
+            RolePermission rolePermissionRetrun = new RolePermission();
+            Role role = roleRepository.findById(Json.getId()).orElse(null);
+            //RolePermission rolePermission = rolePermissionRepository.findById(Json.getId()).orElse(null);
+            LOGGER.info("role ==== {}" , role);
+            if (role == null) {
+                responseReturn = ResponseHelper.bad(ERR_AUTH_0002.getMsg());
+            } else {
+                roleList.add(role);
+                rolePermissionRetrun.setRoleId(roleList.get(0).getId());
+                Permission permissionAdd = permissionRepository.findById(Json.getAddPermission()).orElse(null);
+                if (permissionAdd == null) {
+                    responseReturn = ResponseHelper.bad(ERR_AUTH_0004.getMsg());
+                } else {
+                    permissionList.add(permissionAdd);
+                    rolePermissionRetrun.setPermissionId(permissionList);
+                   // roleRepository.save(role);
+                    LOGGER.info("rolePermissionRetrun permissionAdd ==== {}" , rolePermissionRetrun);
+                    roleRepository.save(rolePermissionRetrun);
+                }
+                Permission permissionRemove = permissionRepository.findById(Json.getRemovePermission()).orElse(null);
+                if (permissionRemove == null) {
+                    responseReturn = ResponseHelper.bad(ERR_AUTH_0004.getMsg());
+                } else {
+                    permissionList.remove(permissionRemove);
+                    rolePermissionRetrun.setPermissionId(permissionList);
+                    LOGGER.info("rolePermissionRetrun permissionRemove ==== {}" , rolePermissionRetrun);
+                    rolePermissionRepository.delete(rolePermissionRetrun);
+                    //permissionList.remove(permissionRemove);
+                }
+                //rolePermissionRepository.save(rolePermissionRetrun);
+                responseReturn = ResponseHelper.success(INFO_AUTH_0000.getMsg());
+            }
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
+        }
+    }
+    */
+
 }
 

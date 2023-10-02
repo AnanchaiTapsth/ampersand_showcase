@@ -1,27 +1,27 @@
 package com.example.ampersand02.controller;
 
-import com.example.ampersand02.domain.Permission;
-import com.example.ampersand02.domain.User;
+import com.example.ampersand02.entity.Permission;
+import com.example.ampersand02.exception.ErrorMessageException;
 import com.example.ampersand02.repository.PermissionRepository;
 import com.example.ampersand02.service.PermissionService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import com.example.ampersand02.service.TransactionLogService;
+import com.example.ampersand02.utils.ResponseHelper;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
+import static com.example.ampersand02.common.Constants.MESSAGE.*;
+
 @RestController
-@RequestMapping("/permission")
+@RequestMapping("/api/permission")
 public class PermissionController {
 
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
@@ -31,49 +31,63 @@ public class PermissionController {
     @Autowired
     private PermissionService permissionService;
 
+
     @Autowired
-    private ObjectMapper objectMapper; // อินเจ็คต์ของ ObjectMapper
+    TransactionLogService transactionLogService;
 
-
+    private  ResponseEntity<Object> responseReturn;
+    private int httpStatus;
     // URS14: ผู้ดูแลระบบผู้ใช้สามารถสร้างสิทธิ์ได้
     @PostMapping("createPermission")
-    public ResponseEntity<String> createPermission(@RequestBody Permission permissionProfileRequest) {
-        LOGGER.info("permissionProfileRequest ===  : {} " ,permissionProfileRequest );
-        Permission createPermission = permissionService.createPermission(permissionProfileRequest);
-        return ResponseEntity.ok("createPermissionProfile " + createPermission.getPermissionName() + " successfully");
+    public ResponseEntity<Object> createPermission(@RequestBody Permission permissionProfileRequest) {
+        try {
+            transactionLogService.setStartTime();
+            responseReturn = permissionService.createPermission(permissionProfileRequest);
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(permissionProfileRequest.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(permissionProfileRequest.toString() , HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
+        }
     }
-
     //URS15: ผู้ดูแลระบบผู้ใช้สามารถเลือกดูการอนุญาตทั้งหมดได้
     @GetMapping("/findPermissionAll")
-    public List <Permission> getPermission() {
-        LOGGER.info("[START][findAllPermission]");
-        List<Permission> permissionsOj = permissionRepository.findAll();
-
-        LOGGER.info("[END][findAllPermission] permission Count: {}", permissionsOj.size());
-        LOGGER.info("[TEST][findAllPermission] permission == : {}", permissionsOj);
-
-        for (Permission permission : permissionsOj) {
-            try {
-                String rolJson = objectMapper.writeValueAsString(permission); //
-                LOGGER.info("permission JSON: {}", rolJson); // แสดง JSON ของ permission
-            } catch (Exception e) {
-                LOGGER.error("Error converting permission to JSON: {}", e.getMessage());
+    public ResponseEntity<Object> getPermission() {
+        try {
+            transactionLogService.setStartTime();
+            List<Permission> permissionList = permissionRepository.findAll();
+            LOGGER.info("permissionList ==== {}", permissionList);
+            responseReturn = ResponseHelper.successWithList(INFO_AUTH_0000.getMsg(), permissionList);
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
+        }
+    }
+    @DeleteMapping ("/deletePermission/{id}")
+    public ResponseEntity<Object> deletePermission(@PathVariable Long id) {
+        try {
+            transactionLogService.setStartTime();
+            Permission permission= permissionRepository.findById(id).orElse(null);
+            LOGGER.info("permission ======== {}" , permission);
+            if (permission == null) {
+                responseReturn = ResponseHelper.bad(ERR_AUTH_0004.getMsg());
+            }else {
+                permissionRepository.delete(permission);
+                responseReturn = ResponseHelper.success(INFO_AUTH_0000.getMsg());
             }
+            LOGGER.info("responseReturn ======== {}" , responseReturn);
+            this.httpStatus = transactionLogService.checkHttp(responseReturn.getStatusCode().value());
+            transactionLogService.savetransactionLog(responseReturn.toString(), this.httpStatus);
+            return responseReturn;
+        } catch (Exception e) {
+            transactionLogService.savetransactionLog(responseReturn.toString(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+            throw new ErrorMessageException(ERR_AUTH_0003);
         }
-
-        return permissionsOj;
     }
-    // URS16: ผู้ดูแลระบบผู้ใช้สามารถลบการอนุญาตโดย permission_id
-    @DeleteMapping("deletePermission/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
-        Permission existingPermission = permissionRepository.findById(id).orElse(null);
 
-        if (existingPermission == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        permissionRepository.delete(existingPermission);
-        return ResponseEntity.ok("Permission deleted successfully");
-    }
 
 }
